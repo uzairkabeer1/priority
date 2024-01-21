@@ -24,7 +24,7 @@ def extract_priority(text):
         if priority in first_sentence.lower():
             return priority.capitalize()
     
-    return "low"
+    return "Low"
 
 @app.route('/predict', methods=['POST'])
 def predict_model_output():
