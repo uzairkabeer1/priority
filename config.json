@@ -1,0 +1,7 @@
+{
+    "PAT" : "0d00224ba2af49f8bea9418269341cce",
+    "APP_ID" : "chat-completion",
+    "USER_ID": "openai",
+    "MODEL_ID" : "GPT-4",
+"MODEL_VERSION_ID" : "5d7a50b44aec4a01a9c492c5a5fcf387"
+}
