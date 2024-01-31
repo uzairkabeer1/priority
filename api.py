@@ -3,6 +3,7 @@ from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
 from clarifai_grpc.grpc.api.status import status_code_pb2
 import json
+import re
 
 app = Flask(__name__)
 
@@ -15,6 +16,15 @@ with open('config.json') as config_file:
     MODEL_ID = config['MODEL_ID']
     MODEL_VERSION_ID = config['MODEL_VERSION_ID'] 
 
+def steps_extract(text):
+    steps = re.findall(r'Step \d+: [^\n]+', text)
+    return steps
+
+def clean_sort(text):
+    steps = steps_extract(text)
+    sorted_steps = sorted(steps, key=lambda x: int(re.search(r'\d+', x).group()))
+    cleaned_steps = [re.sub(r'Step \d+: ', '', step) for step in sorted_steps]
+    return cleaned_steps
 
 def extract_priority(text):
     first_sentence = text.split('.')[0]
@@ -22,6 +32,7 @@ def extract_priority(text):
     
     for priority in priorities:
         if priority in first_sentence.lower():
+            print(priority)
             return priority.capitalize()
     
     return "Low"
@@ -30,7 +41,7 @@ def extract_priority(text):
 def predict_model_output():
     data = request.json
     RAW_TEXT = data['text']
-    RAW_TEXT = f'Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}'
+    RAW_TEXT = f'Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier'
     channel = ClarifaiChannel.get_grpc_channel()
     stub = service_pb2_grpc.V2Stub(channel)
 
@@ -60,9 +71,12 @@ def predict_model_output():
             raise Exception(f"Post model outputs failed, status: {post_model_outputs_response.status.description}")
 
         output = post_model_outputs_response.outputs[0]
-        final_output = extract_priority(output.data.text.raw)
+        text = output.data.text.raw
+        priority_task = extract_priority(text)
+        task_breakdonw = clean_sort(text)
         response_data = {
-            "priority": final_output
+            "priority": priority_task,
+            "steps": task_breakdonw
         }
         return jsonify(response_data)
 
