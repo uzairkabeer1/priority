@@ -6,9 +6,23 @@ import re
 app = Flask(__name__)
 
 
+def decrypt_caesar(encrypted_text, shift):
+    decrypted_text = ""
+    for char in encrypted_text:
+        if char == '#':
+            decrypted_text += '-'
+        elif char.isalpha():
+            shifted_char = chr((ord(char.lower()) - ord('a') - shift) % 26 + ord('a'))
+            if char.isupper():
+                shifted_char = shifted_char.upper()
+            decrypted_text += shifted_char
+        else:
+            decrypted_text += char
+    return decrypted_text
+
 with open('config.json') as config_file:
     config = json.load(config_file)
-    API_KEY = config['API_KEY']
+    API_KEY = decrypt_caesar(config['API_KEY'], 3)
 
 step_re = re.compile(r'Step (\d+): (.*)')
 num_re = re.compile(r'\d+')
@@ -37,7 +51,7 @@ def extract_priority(text):
 def predict_model_output():
     data = request.json
     RAW_TEXT = data['text']
-    RAW_TEXT = f'Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier'
+    RAW_TEXT = f'Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier. They should be in the format of Step 1: Do something, Step 2: Do something else, etc. and the steps must be only about 4-5 words long'
     client = OpenAI(
         api_key=API_KEY
     )
