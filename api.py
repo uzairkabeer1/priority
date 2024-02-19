@@ -8,11 +8,7 @@ app = Flask(__name__)
 
 with open('config.json') as config_file:
     config = json.load(config_file)
-    PAT = config['PAT']
-    USER_ID = config['USER_ID']
-    APP_ID = config['APP_ID']
-    MODEL_ID = config['MODEL_ID']
-    MODEL_VERSION_ID = config['MODEL_VERSION_ID'] 
+    API_KEY = config['API_KEY']
 
 step_re = re.compile(r'Step (\d+): (.*)')
 num_re = re.compile(r'\d+')
@@ -43,7 +39,7 @@ def predict_model_output():
     RAW_TEXT = data['text']
     RAW_TEXT = f'Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier'
     client = OpenAI(
-        api_key="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"
+        api_key=API_KEY
     )
     
     
