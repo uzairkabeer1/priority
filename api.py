@@ -1,7 +1,5 @@
 from flask import Flask, request, jsonify
-from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
-from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
-from clarifai_grpc.grpc.api.status import status_code_pb2
+from openai import OpenAI
 import json
 import re
 
@@ -16,62 +14,48 @@ with open('config.json') as config_file:
     MODEL_ID = config['MODEL_ID']
     MODEL_VERSION_ID = config['MODEL_VERSION_ID'] 
 
-def steps_extract(text):
-    steps = re.findall(r'Step \d+: [^\n]+', text)
-    return steps
+step_re = re.compile(r'Step (\d+): (.*)')
+num_re = re.compile(r'\d+')
+step_clean_re = re.compile(r'Step \d+:')
+
+def extract_steps_text(text):
+    steps_matches = step_re.findall(text)
+    return steps_matches
 
 def clean_sort(text):
-    steps = steps_extract(text)
-    sorted_steps = sorted(steps, key=lambda x: int(re.search(r'\d+', x).group()))
-    cleaned_steps = [re.sub(r'Step \d+: ', '', step) for step in sorted_steps]
+    steps = extract_steps_text(text)
+    sorted_steps = sorted(steps, key=lambda x: int(num_re.search(x[0]).group()))
+    cleaned_steps = [step_clean_re.sub('', step[1]) for step in sorted_steps]
     return cleaned_steps
 
 def extract_priority(text):
-    first_sentence = text.split('.')[0]
-    priorities = ["high", "medium", "low"]
-    
-    for priority in priorities:
-        if priority in first_sentence.lower():
-            print(priority)
-            return priority.capitalize()
-    
+    priority_match = re.search(r'Priority: (\w+)', text)
+    if priority_match:
+        priority = priority_match.group(1).capitalize()
+        if priority in ["High", "Medium", "Low"]:
+            return priority
     return "Low"
+
 
 @app.route('/predict', methods=['POST'])
 def predict_model_output():
     data = request.json
     RAW_TEXT = data['text']
     RAW_TEXT = f'Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier'
-    channel = ClarifaiChannel.get_grpc_channel()
-    stub = service_pb2_grpc.V2Stub(channel)
-
-    metadata = (('authorization', 'Key ' + PAT),)
-    userDataObject = resources_pb2.UserAppIDSet(user_id=USER_ID, app_id=APP_ID)
-
+    client = OpenAI(
+        api_key="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"
+    )
+    
+    
     try:
-        post_model_outputs_response = stub.PostModelOutputs(
-            service_pb2.PostModelOutputsRequest(
-                user_app_id=userDataObject,
-                model_id=MODEL_ID,
-                version_id=MODEL_VERSION_ID,
-                inputs=[
-                    resources_pb2.Input(
-                        data=resources_pb2.Data(
-                            text=resources_pb2.Text(
-                                raw=RAW_TEXT
-                            )
-                        )
-                    )
-                ]
-            ),
-            metadata=metadata
+        completion = client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": f"Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier"}
+        ]
         )
-        if post_model_outputs_response.status.code != status_code_pb2.SUCCESS:
-            print(post_model_outputs_response.status)
-            raise Exception(f"Post model outputs failed, status: {post_model_outputs_response.status.description}")
 
-        output = post_model_outputs_response.outputs[0]
-        text = output.data.text.raw
+        text = completion.choices[0].message.content
         priority_task = extract_priority(text)
         task_breakdonw = clean_sort(text)
         response_data = {
