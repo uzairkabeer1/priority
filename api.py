@@ -61,7 +61,7 @@ def predict_model_output():
         completion = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": f"Behave you are a priority schedular app, set a priority of high or medium or low for the task,{RAW_TEXT}. Also, break the task in to 2 or 3 steps to make it easier"}
+            {"role": "system", "content": f"{RAW_TEXT}"}
         ]
         )
 
